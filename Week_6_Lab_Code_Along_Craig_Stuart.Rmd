@@ -1,0 +1,155 @@
+---
+title: "Week 6 Lab Craig Stuart"
+author: "Craig Stuart"
+date: "11/13/2020"
+output: html_document
+---
+
+## Part 1 - Attach packages
+
+```{r setup, include=FALSE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Attach Packages
+library(tidyverse)
+library(palmerpenguins)
+library(ggpubr)
+library(broom)
+```
+
+## Part 2 - A rank-based test example (Mann Whitney U)
+
+- Create two sample vectors using `set.seed()` and `sample.int()`
+
+```{r}
+set.seed(1414)
+gp_1 <- sample.int(20, size = 15, replace = TRUE)
+
+set.seed(1424)
+gp_2 <- sample.int(30, size = 15, replace = TRUE)
+```
+
+- Is there evidence for a significant difference in ranks (medians) between the populations from which gp_1 and gp_2 were drawn?
+
+- Use `hist()` for a quick exploration data visualization for each vector
+
+```{r}
+hist(gp_1)
+
+hist(gp_2)
+```
+
+- Use the Mann-Whitney U (`wilcox.test()`) to test if there's a significant difference in ranks (medians) between `gp_1` and `gp_2`
+
+```{r}
+my_mwu <- wilcox.test(gp_1, gp_2)
+```
+A p-value of 0.28 means that if the null hypothesis is true (that these samples were drawn from populations with the same median), there is a probability of 0.28 that we could have found median values at least as different as ours by chance.This would not be sufficient evidence to reject the null hypothesis of equal ranks (or medians) using a significance level of 0.05.
+
+## Part 3 - Simple linear regression
+
+- explore the relationship between two continuous variables, using the `punguins` dataset. 
+- explore the flipper length and body mass for penguins, including all 3 penguins species 
+
+### A - Look at it!
+
+- scatterplot of penguin flipper length vs. body mass
+
+```{r}
+ggplot(data = penguins, aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point()
+```
+
+### B - Model it
+
+- if we decide that a linear relationship makes sense, use `lm()` 
+
+```{r}
+# linear model, stored as penguin_lm:
+penguin_lm <- lm(body_mass_g ~ flipper_length_mm, data = penguins)
+
+# return the complete overview:
+summary(penguin_lm)
+```
+#### Notable things to highlight from the output:
+- Both the intercept and flipper_length_mm coefficients are significantly different from zero (not super interesting)
+- The Multiple R2 value is 0.759 - meaning that 75.9% of variance in body mass is explained by flipper length
+
+### C - Access model outputs 
+
+- We can use the `broom::tidy` function to get the model outputs in nice data frame format:
+
+```{r}
+penguin_lm_tidy <- broom::tidy(penguin_lm)
+```
+
+```{r}
+# Get the intercept:
+penguin_int <- penguin_lm_tidy$estimate[2]
+penguin_int
+```
+
+```{r}
+# then to get the flipper_length coefficient:
+penguin_coef <- penguin_lm_tidy$estimate[2]
+penguin_coef
+```
+
+- What about getting some other model information (degrees of freedom, F-statistic, p-value, etc.)? Many of these statistical outcomes can be accessed more easily using broom::glance().
+
+```{r}
+# Metrics at a glance:
+penguin_lm_out <- broom::glance(penguin_lm)
+penguin_lm_out
+```
+## D - Explore model assumptions
+
+Recall linear regression assumptions:
+- Linearly related variables (CHECK - already looked & thought hard)
+- Normally distributed residuals
+- Homoscedasticity (constant residuals variance)
+- iid residuals (no serial correlation) - more often a concern in time series data
+
+```{r}
+plot(penguin_lm)
+```
+- in summary: graphs 1 & 3 are useful for thinking about homoscedasticity; graph 2 (QQ plot) helps us consider normality of residuals; graph 4 reveals the Cook’s distance (a measure of how much leverage any single observation has on the model)
+
+## E - Visualize the model
+
+- Use `geom_smooth(method = "lm")` to add a linear model to an existing scatterplot
+- Use `stat_cor()` and/or `stat_regline_equation()` to add equation information directly to the plot panel, at an x- and y- position that you specify
+
+```{r}
+ggplot(data = penguins, aes(x = flipper_length_mm, y = body_mass_g)) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm",
+              color = "red",
+              size = 0.5,
+              fill = "gray50",
+              alpha = 0.5) +
+  theme_light() +
+  ggpubr::stat_regline_equation(label.x = 180, label.y = 5700)
+```
+
+## F - Find Pearson's r for correlation
+
+- We might also want to explore the strength of the correlation (degree of relationship) between two variables which, for two linearly related continuous variables, can be expressed using Pearson’s r.
+
+- Pearson’s r ranges in value from -1 (perfectly negatively correlated - as one variable increases the other decreases) to 1 (perfectly positively correlated - as one variable increases the other increases). A correlation of 0 means that there is no degree of relationship between the two variables.
+
+- Typical guidelines look something like this (there’s wiggle room in there):
+
+r = 0: no correlation
+r < |0.3|: weak correlation
+r between |0.3| and |0.7|: moderate correlation
+r > |0.7|: strong correlation
+
+- We’ll use the `cor.test()` function, adding the two vectors (`flipper_length_mm` and `body_mass_g`) as the arguments. The function reports the Pearson’s r value, and performs a hypothesis test with null hypothesis that the correlation = 0.
+
+```{r}
+penguins_cor <- cor.test(penguins$flipper_length_mm, penguins$body_mass_g)
+```
+
+
+
